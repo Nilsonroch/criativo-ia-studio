@@ -1,22 +1,23 @@
 export async function handler(event) {
+  const corsHeaders = {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-      },
+      headers: corsHeaders,
+      body: "",
     };
   }
 
   if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: corsHeaders,
       body: JSON.stringify({ error: "Método não permitido." }),
     };
   }
@@ -27,10 +28,7 @@ export async function handler(event) {
     if (!apiKey) {
       return {
         statusCode: 500,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           error: "A variável OPENAI_API_KEY não foi configurada no Netlify.",
         }),
@@ -52,17 +50,15 @@ export async function handler(event) {
     if (!tema || !descricao) {
       return {
         statusCode: 400,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           error: "Os campos tema e descricao são obrigatórios.",
         }),
       };
     }
 
-    const prompt = `Você é um diretor de criação especializado em marketing para Instagram.
+    const prompt = `
+Você é um diretor de criação especializado em marketing para Instagram.
 
 Crie um conceito de criativo com base nos dados abaixo:
 - Tema/produto: ${tema}
@@ -85,7 +81,8 @@ A headline deve ser forte e publicitária.
 O textoArte deve ser curto.
 A legenda deve ser pronta para Instagram.
 As hashtags devem vir em uma única string.
-A direção visual deve explicar como a arte deve ser montada.`;
+A direção visual deve explicar como a arte deve ser montada.
+`;
 
     const input = [
       {
@@ -123,10 +120,7 @@ A direção visual deve explicar como a arte deve ser montada.`;
     if (!response.ok) {
       return {
         statusCode: response.status,
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
-        },
+        headers: corsHeaders,
         body: JSON.stringify({
           error: data?.error?.message || "Erro ao consultar a OpenAI.",
           raw: data,
@@ -151,10 +145,7 @@ A direção visual deve explicar como a arte deve ser montada.`;
 
     return {
       statusCode: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         ok: true,
         result: parsed,
@@ -163,10 +154,7 @@ A direção visual deve explicar como a arte deve ser montada.`;
   } catch (error) {
     return {
       statusCode: 500,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: corsHeaders,
       body: JSON.stringify({
         error: error.message || "Erro interno inesperado.",
       }),
