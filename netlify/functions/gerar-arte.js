@@ -16,6 +16,7 @@ export async function handler(event) {
 
   async function parseResponseSafely(response) {
     const rawText = await response.text();
+
     try {
       return {
         ok: true,
@@ -65,6 +66,11 @@ export async function handler(event) {
       headline,
       textoArte,
       direcaoVisual,
+      subheadline,
+      destaquePrincipal,
+      localizacao,
+      valorPrincipal,
+      cta,
     } = body;
 
     if (!tema || !descricao) {
@@ -83,28 +89,26 @@ export async function handler(event) {
 
     let imageInsights = "";
 
-    // Analisa a imagem enviada, se existir.
-    // Se falhar, seguimos sem travar a geração da arte.
     if (imageBase64 && mimeType) {
       try {
         const analysisPrompt = `
-Analise esta imagem enviada pelo usuário para servir como referência de criativo publicitário.
+Analise esta imagem enviada pelo usuário como referência visual para um post publicitário de Instagram.
 
-Retorne em JSON válido com esta estrutura:
+Retorne APENAS JSON válido com esta estrutura:
 {
   "resumoVisual": "...",
   "elementosImportantes": ["...", "..."],
-  "paletaOuClima": "...",
+  "climaVisual": "...",
   "composicaoSugerida": "...",
-  "textoSeguroNaArte": "..."
+  "restricoesVisuais": ["...", "..."]
 }
 
-Instruções:
-- descreva os elementos principais da imagem
-- identifique produto, cenário, clima visual e possíveis focos
-- sugira como transformar isso em um post profissional para Instagram
-- não invente detalhes ausentes
-- responda apenas com JSON válido
+REGRAS:
+- descreva apenas o que realmente aparece
+- não invente texto, marcas, datas ou números não visíveis
+- identifique cenário, produto, fundo, clima visual e foco principal
+- sugira composição visual para um anúncio profissional
+- se a imagem estiver confusa, diga isso de forma curta
 `;
 
         const analysisResponse = await fetch("https://api.openai.com/v1/responses", {
@@ -148,19 +152,19 @@ Instruções:
             parsedAnalysis = {
               resumoVisual: analysisData?.output_text || "",
               elementosImportantes: [],
-              paletaOuClima: "",
+              climaVisual: "",
               composicaoSugerida: "",
-              textoSeguroNaArte: "",
+              restricoesVisuais: [],
             };
           }
 
           imageInsights = `
-Referência visual extraída da imagem enviada:
+Referência visual da imagem enviada:
 - Resumo visual: ${parsedAnalysis?.resumoVisual || "não informado"}
 - Elementos importantes: ${(parsedAnalysis?.elementosImportantes || []).join(", ") || "não informado"}
-- Paleta ou clima: ${parsedAnalysis?.paletaOuClima || "não informado"}
+- Clima visual: ${parsedAnalysis?.climaVisual || "não informado"}
 - Composição sugerida: ${parsedAnalysis?.composicaoSugerida || "não informado"}
-- Texto seguro na arte: ${parsedAnalysis?.textoSeguroNaArte || "não informado"}
+- Restrições visuais: ${(parsedAnalysis?.restricoesVisuais || []).join(", ") || "nenhuma"}
 `;
         }
       } catch (analysisError) {
@@ -169,32 +173,52 @@ Referência visual extraída da imagem enviada:
     }
 
     const visualPrompt = `
-Crie uma arte publicitária profissional para Instagram com base nestas instruções.
+Crie uma arte publicitária profissional para Instagram.
 
-Tema/produto: ${tema}
-Objetivo: ${objetivo || "não informado"}
-Estilo: ${estilo || "não informado"}
-Formato: ${formato || "1080x1350"}
-Descrição do criativo: ${descricao}
-Observações adicionais: ${observacoes || "nenhuma"}
-Headline obrigatória na arte: ${headline || "Criativo impactante"}
-Texto curto obrigatório na arte: ${textoArte || "Mensagem principal do post"}
-Direção visual sugerida: ${direcaoVisual || "Composição forte, moderna e orientada a conversão"}
+Dados do anúncio:
+- Tema/produto: ${tema}
+- Objetivo: ${objetivo || "não informado"}
+- Estilo: ${estilo || "não informado"}
+- Formato: ${formato || "1080x1350"}
+- Headline principal: ${headline || ""}
+- Subheadline: ${subheadline || ""}
+- Destaque principal: ${destaquePrincipal || textoArte || ""}
+- Localização: ${localizacao || ""}
+- Valor principal: ${valorPrincipal || ""}
+- CTA: ${cta || ""}
+- Observações adicionais: ${observacoes || "nenhuma"}
+- Direção visual sugerida: ${direcaoVisual || ""}
+
+Descrição complementar:
+${descricao}
 
 ${imageInsights}
 
-Requisitos:
-- criar uma arte publicitária profissional pronta para Instagram
-- hierarquia visual clara
-- headline em destaque
-- texto complementar curto
-- composição elegante e publicitária
-- manter legibilidade
+REGRAS OBRIGATÓRIAS:
+- criar uma arte enxuta, elegante, profissional e persuasiva
+- não escrever "criado por IA", "gerado com IA" ou frases similares
+- não inserir parágrafos longos
+- não copiar texto bruto de edital, descrição jurídica, matrícula ou bloco técnico
+- usar apenas as informações essenciais para vender a ideia principal
+- manter ortografia correta em português
+- destacar headline e no máximo 2 ou 3 informações fortes
 - evitar excesso de texto
-- imagem final deve parecer um criativo de campanha real
-- respeitar o estilo pedido pelo usuário
-- se houver referência visual da imagem enviada, usar apenas como inspiração visual e conceitual
-- preservar coerência com o tema informado
+- evitar informação irrelevante ou sem relação comercial
+- não inventar números, datas ou localidades
+- se algum dado estiver incerto, omitir esse dado da arte
+- parecer um anúncio profissional real de Instagram
+- priorizar contraste, legibilidade e hierarquia visual
+- se houver imagem enviada, usar apenas como inspiração visual/conceitual, sem tentar reproduzir texto da imagem original
+
+ESTRUTURA VISUAL ESPERADA:
+- headline forte
+- subtítulo curto, se fizer sentido
+- 1 destaque principal
+- localização ou contexto curto
+- valor principal, se houver
+- CTA curto, se houver
+
+A arte deve ficar limpa, sofisticada e pronta para postagem.
 `;
 
     const payload = {
