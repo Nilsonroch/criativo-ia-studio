@@ -40,7 +40,6 @@ export async function handler(event) {
       tema,
       descricao,
       estilo,
-      formato,
       headline,
       subheadline,
       destaquePrincipal,
@@ -57,14 +56,6 @@ export async function handler(event) {
         error: "Os campos tema e descricao são obrigatórios.",
       });
     }
-
-    const sizeMap = {
-      "1080x1080": "1024x1024",
-      "1080x1350": "1024x1536",
-      "1080x1920": "1024x1536",
-    };
-
-    const imageSize = sizeMap[formato] || "1024x1536";
 
     const visualPrompt = `
 Crie uma arte publicitária profissional para Instagram, limpa, elegante e comercial.
@@ -94,6 +85,8 @@ Regras obrigatórias:
 - no máximo 2 ou 3 informações curtas de apoio
 - não inventar valores, datas ou localidades
 - visual pronto para postagem no Instagram
+- composição limpa e legível
+- sem blocos longos de texto
 `;
 
     const openaiResponse = await fetch("https://api.openai.com/v1/images/generations", {
@@ -105,8 +98,9 @@ Regras obrigatórias:
       body: JSON.stringify({
         model: "gpt-image-1",
         prompt: visualPrompt,
-        size: imageSize,
-        output_format: "png",
+        size: "1024x1024",
+        output_format: "webp",
+        quality: "low",
       }),
     });
 
@@ -131,26 +125,18 @@ Regras obrigatórias:
 
     const first = Array.isArray(data?.data) ? data.data[0] : null;
     const b64 = first?.b64_json || null;
-    const url = first?.url || null;
 
-    if (b64) {
-      return reply(200, {
-        ok: true,
-        imageBase64: b64,
-        mimeType: "image/png",
+    if (!b64) {
+      return reply(500, {
+        error: "A função gerar-arte não retornou a imagem gerada.",
+        raw: data,
       });
     }
 
-    if (url) {
-      return reply(200, {
-        ok: true,
-        imageUrl: url,
-      });
-    }
-
-    return reply(500, {
-      error: "A função gerar-arte não retornou a imagem gerada.",
-      raw: data,
+    return reply(200, {
+      ok: true,
+      imageBase64: b64,
+      mimeType: "image/webp",
     });
   } catch (error) {
     console.error("Erro interno em gerar-arte:", error);
