@@ -32,6 +32,24 @@ export async function handler(event) {
     }
   }
 
+  function extractOutputText(apiData) {
+    if (!apiData || !Array.isArray(apiData.output)) return "";
+
+    const texts = [];
+
+    for (const item of apiData.output) {
+      if (!Array.isArray(item.content)) continue;
+
+      for (const content of item.content) {
+        if (content?.type === "output_text" && typeof content.text === "string") {
+          texts.push(content.text);
+        }
+      }
+    }
+
+    return texts.join("\n").trim();
+  }
+
   if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
@@ -144,32 +162,21 @@ REGRAS:
         if (!analysisResponse.ok) {
           console.error("Erro na análise da imagem:", parsedAnalysisResponse.rawText);
         } else if (parsedAnalysisResponse.ok && parsedAnalysisResponse.data) {
-          const analysisData = parsedAnalysisResponse.data;
-
-          let parsedAnalysis = null;
+          let parsedAnalysis = {
+            resumoVisual: "",
+            elementosImportantes: [],
+            climaVisual: "",
+            composicaoSugerida: "",
+            restricoesVisuais: [],
+          };
 
           try {
-            const outputItems = analysisData?.output || [];
-            let text = "";
-
-            for (const item of outputItems) {
-              if (!Array.isArray(item.content)) continue;
-              for (const content of item.content) {
-                if (content?.type === "output_text" && typeof content.text === "string") {
-                  text += content.text;
-                }
-              }
+            const outputText = extractOutputText(parsedAnalysisResponse.data);
+            if (outputText) {
+              parsedAnalysis = JSON.parse(outputText);
             }
-
-            parsedAnalysis = JSON.parse(text || "{}");
-          } catch {
-            parsedAnalysis = {
-              resumoVisual: "",
-              elementosImportantes: [],
-              climaVisual: "",
-              composicaoSugerida: "",
-              restricoesVisuais: [],
-            };
+          } catch (e) {
+            console.error("Falha ao converter análise da imagem em JSON:", e);
           }
 
           imageInsights = `
@@ -251,7 +258,6 @@ ESTILO VISUAL:
       prompt: visualPrompt,
       size: imageSize,
       output_format: "png",
-      quality: "medium",
     };
 
     const response = await fetch("https://api.openai.com/v1/images/generations", {
