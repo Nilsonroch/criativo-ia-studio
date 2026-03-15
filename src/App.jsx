@@ -192,7 +192,15 @@ export default function App() {
           observacoes,
           imageBase64,
           mimeType,
+          tipoAnuncio: draft.tipoAnuncio,
           headline: draft.headline,
+          subheadline: draft.subheadline,
+          destaquePrincipal: draft.destaquePrincipal,
+          localizacao: draft.localizacao,
+          valorPrincipal: draft.valorPrincipal,
+          apoio1: draft.apoio1,
+          apoio2: draft.apoio2,
+          cta: draft.cta,
           textoArte: draft.textoArte,
           direcaoVisual: draft.direcaoVisual,
         }),
@@ -275,7 +283,7 @@ export default function App() {
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
                 <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Processo</p>
-                <p className="mt-2 text-sm font-semibold">Copy + arte com IA</p>
+                <p className="mt-2 text-sm font-semibold">Síntese + arte com IA</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
                 <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Saída</p>
@@ -404,7 +412,7 @@ export default function App() {
               >
                 {gerando ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 {carregandoCopy
-                  ? "Gerando copy com IA..."
+                  ? "Gerando síntese com IA..."
                   : carregandoArte
                     ? "Gerando arte final com IA..."
                     : "Gerar Criativo Completo"}
@@ -420,7 +428,7 @@ export default function App() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold">Resultado do criativo</h2>
-                  <p className="text-sm text-slate-400">A copy e a arte final geradas pela IA aparecem aqui.</p>
+                  <p className="text-sm text-slate-400">A síntese e a arte final geradas pela IA aparecem aqui.</p>
                 </div>
               </div>
 
@@ -451,6 +459,13 @@ export default function App() {
 
                 <div className="space-y-4">
                   <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Tipo de anúncio</p>
+                    <p className="mt-2 text-sm font-semibold text-slate-200">
+                      {resultado?.tipoAnuncio || "Será identificado pela IA"}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
                     <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Headline</p>
                     <p className="mt-2 text-lg font-bold text-white">
                       {resultado?.headline || "A headline gerada pela IA aparecerá aqui."}
@@ -458,9 +473,45 @@ export default function App() {
                   </div>
 
                   <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Texto da arte</p>
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Subheadline</p>
                     <p className="mt-2 text-sm leading-7 text-slate-200">
-                      {resultado?.textoArte || "O texto principal da arte será exibido aqui."}
+                      {resultado?.subheadline || "Complemento curto da headline."}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Destaque principal</p>
+                    <p className="mt-2 text-sm leading-7 text-slate-200">
+                      {resultado?.destaquePrincipal || resultado?.textoArte || "O principal destaque do anúncio aparecerá aqui."}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Localização</p>
+                    <p className="mt-2 text-sm leading-7 text-slate-200">
+                      {resultado?.localizacao || "A localização relevante aparecerá aqui."}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Valor principal</p>
+                    <p className="mt-2 text-sm leading-7 text-slate-200">
+                      {resultado?.valorPrincipal || "O valor mais importante aparecerá aqui."}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">Apoios</p>
+                    <div className="mt-2 space-y-2 text-sm leading-7 text-slate-200">
+                      <p>{resultado?.apoio1 || "Informação complementar 1"}</p>
+                      <p>{resultado?.apoio2 || "Informação complementar 2"}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-slate-900/60 p-4">
+                    <p className="text-xs uppercase tracking-[0.18em] text-slate-500">CTA</p>
+                    <p className="mt-2 text-sm leading-7 text-slate-200">
+                      {resultado?.cta || "Chamada para ação"}
                     </p>
                   </div>
 
