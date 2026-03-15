@@ -40,14 +40,8 @@ export async function handler(event) {
       tema,
       descricao,
       estilo,
-      headline,
-      subheadline,
-      destaquePrincipal,
-      localizacao,
-      valorPrincipal,
-      apoio1,
-      apoio2,
-      cta,
+      formato,
+      tipoAnuncio,
       direcaoVisual,
     } = body;
 
@@ -57,36 +51,36 @@ export async function handler(event) {
       });
     }
 
-    const visualPrompt = `
-Crie uma arte publicitária profissional para Instagram, limpa, elegante e comercial.
+    const sizeMap = {
+      "1080x1080": "1024x1024",
+      "1080x1350": "1024x1536",
+      "1080x1920": "1024x1536",
+    };
+
+    const imageSize = sizeMap[formato] || "1024x1536";
+
+    const prompt = `
+Crie apenas o FUNDO VISUAL de uma arte publicitária profissional para Instagram.
 
 Tema: ${tema}
+Tipo de anúncio: ${tipoAnuncio || "geral"}
 Estilo: ${estilo || "comercial"}
+Direção visual: ${direcaoVisual || "visual limpo e profissional"}
+Contexto: ${descricao}
 
-Use apenas o essencial:
-- Headline: ${headline || ""}
-- Subheadline: ${subheadline || ""}
-- Destaque principal: ${destaquePrincipal || ""}
-- Localização: ${localizacao || ""}
-- Valor principal: ${valorPrincipal || ""}
-- Apoio 1: ${apoio1 || ""}
-- Apoio 2: ${apoio2 || ""}
-- CTA: ${cta || ""}
-- Direção visual: ${direcaoVisual || ""}
-- Contexto complementar: ${descricao}
-
-Regras obrigatórias:
-- não escrever "criado por IA" ou "gerado por IA"
-- não usar texto excessivo
-- manter ortografia correta em português
-- arte visualmente profissional
-- hierarquia visual forte
-- headline em destaque
-- no máximo 2 ou 3 informações curtas de apoio
-- não inventar valores, datas ou localidades
-- visual pronto para postagem no Instagram
-- composição limpa e legível
-- sem blocos longos de texto
+REGRAS OBRIGATÓRIAS:
+- NÃO escrever nenhum texto na imagem
+- NÃO inserir letras, números, logotipos, marcas d'água ou tipografia
+- criar apenas o background e a composição visual
+- deixar áreas limpas para sobreposição de texto depois
+- composição elegante, publicitária e profissional
+- contraste suficiente para texto branco ou claro por cima
+- visual pronto para post de Instagram
+- se for imóvel, leilão, fazenda ou terra, usar cenário compatível e sofisticado
+- se for produto agro, usar composição limpa, técnica e comercial
+- evitar poluição visual
+- evitar elementos confusos no centro
+- priorizar legibilidade futura do layout
 `;
 
     const openaiResponse = await fetch("https://api.openai.com/v1/images/generations", {
@@ -97,10 +91,9 @@ Regras obrigatórias:
       },
       body: JSON.stringify({
         model: "gpt-image-1",
-        prompt: visualPrompt,
-        size: "1024x1024",
+        prompt,
+        size: imageSize,
         output_format: "webp",
-        quality: "low",
       }),
     });
 
@@ -111,32 +104,40 @@ Regras obrigatórias:
       data = JSON.parse(rawText);
     } catch {
       return reply(502, {
-        error: "A OpenAI retornou resposta não JSON na geração da arte.",
+        error: "A OpenAI retornou resposta não JSON na geração do fundo.",
         raw: rawText,
       });
     }
 
     if (!openaiResponse.ok) {
       return reply(openaiResponse.status, {
-        error: data?.error?.message || "Erro ao gerar a arte com a OpenAI.",
+        error: data?.error?.message || "Erro ao gerar o fundo com a OpenAI.",
         raw: data,
       });
     }
 
     const first = Array.isArray(data?.data) ? data.data[0] : null;
     const b64 = first?.b64_json || null;
+    const url = first?.url || null;
 
-    if (!b64) {
-      return reply(500, {
-        error: "A função gerar-arte não retornou a imagem gerada.",
-        raw: data,
+    if (b64) {
+      return reply(200, {
+        ok: true,
+        imageBase64: b64,
+        mimeType: "image/webp",
       });
     }
 
-    return reply(200, {
-      ok: true,
-      imageBase64: b64,
-      mimeType: "image/webp",
+    if (url) {
+      return reply(200, {
+        ok: true,
+        imageUrl: url,
+      });
+    }
+
+    return reply(500, {
+      error: "A função gerar-arte não retornou o fundo gerado.",
+      raw: data,
     });
   } catch (error) {
     console.error("Erro interno em gerar-arte:", error);
