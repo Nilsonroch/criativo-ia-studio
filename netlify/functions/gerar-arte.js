@@ -70,7 +70,6 @@ export async function handler(event) {
 
     let imageInsights = "";
 
-    // 1) Se houver imagem enviada, primeiro analisamos essa imagem com a Responses API
     if (imageBase64 && mimeType) {
       const analysisPrompt = `
 Analise esta imagem enviada pelo usuário para servir como referência de criativo publicitário.
@@ -155,7 +154,6 @@ Referência visual extraída da imagem enviada:
 `;
     }
 
-    // 2) Agora geramos a arte final a partir do prompt
     const visualPrompt = `
 Crie uma arte publicitária profissional para Instagram com base nestas instruções.
 
