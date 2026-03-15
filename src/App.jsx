@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Upload,
   Sparkles,
@@ -89,6 +89,56 @@ function buildApiError(label, parsed) {
   return `${label} falhou com status ${parsed.status}.`;
 }
 
+function getCanvasStyle(formato) {
+  if (formato === "1080x1080") return { aspectRatio: "1 / 1" };
+  if (formato === "1080x1920") return { aspectRatio: "9 / 16" };
+  return { aspectRatio: "4 / 5" };
+}
+
+function getLayoutByTipo(tipo) {
+  if (!tipo) {
+    return {
+      headlineClass: "text-[11%] leading-[0.95]",
+      subClass: "text-[4.2%] leading-tight",
+      mainClass: "text-[8.5%] leading-[0.95]",
+      metaClass: "text-[3.8%] leading-tight",
+      valueClass: "text-[5.2%] leading-tight",
+      ctaClass: "text-[3.8%] leading-tight",
+    };
+  }
+
+  if (tipo.includes("leilao") || tipo.includes("imovel")) {
+    return {
+      headlineClass: "text-[10.5%] leading-[0.92]",
+      subClass: "text-[4.1%] leading-tight",
+      mainClass: "text-[9.2%] leading-[0.92]",
+      metaClass: "text-[3.7%] leading-tight",
+      valueClass: "text-[5.6%] leading-tight",
+      ctaClass: "text-[3.9%] leading-tight",
+    };
+  }
+
+  if (tipo.includes("produto") || tipo.includes("agro")) {
+    return {
+      headlineClass: "text-[10%] leading-[0.95]",
+      subClass: "text-[4.2%] leading-tight",
+      mainClass: "text-[7.8%] leading-[0.95]",
+      metaClass: "text-[3.8%] leading-tight",
+      valueClass: "text-[4.8%] leading-tight",
+      ctaClass: "text-[3.8%] leading-tight",
+    };
+  }
+
+  return {
+    headlineClass: "text-[11%] leading-[0.95]",
+    subClass: "text-[4.2%] leading-tight",
+    mainClass: "text-[8.5%] leading-[0.95]",
+    metaClass: "text-[3.8%] leading-tight",
+    valueClass: "text-[5.2%] leading-tight",
+    ctaClass: "text-[3.8%] leading-tight",
+  };
+}
+
 export default function App() {
   const [imagem, setImagem] = useState(null);
   const [tema, setTema] = useState("");
@@ -102,11 +152,16 @@ export default function App() {
   const [resultado, setResultado] = useState(null);
   const [erro, setErro] = useState("");
   const [copiado, setCopiado] = useState(false);
+  const [baixando, setBaixando] = useState(false);
+
+  const cardRef = useRef(null);
 
   const previewImage = useMemo(() => {
     if (!imagem) return null;
     return URL.createObjectURL(imagem);
   }, [imagem]);
+
+  const layout = getLayoutByTipo(resultado?.tipoAnuncio);
 
   function handleImagemChange(event) {
     const file = event.target.files?.[0] || null;
@@ -220,18 +275,24 @@ export default function App() {
 
       const arteData = arteParsed.data;
 
-      if (!arteData?.imageBase64) {
-        console.error("Sem imageBase64 em gerar-arte:", arteData);
+      let finalImageUrl = null;
+
+      if (arteData?.imageBase64) {
+        finalImageUrl = `data:${arteData.mimeType || "image/webp"};base64,${arteData.imageBase64}`;
+      } else if (arteData?.imageUrl) {
+        finalImageUrl = arteData.imageUrl;
+      }
+
+      if (!finalImageUrl) {
+        console.error("Sem imagem em gerar-arte:", arteData);
         throw new Error(
           arteData?.error || "A função gerar-arte não retornou a imagem gerada."
         );
       }
 
-      const imageUrl = `data:${arteData.mimeType || "image/png"};base64,${arteData.imageBase64}`;
-
       setResultado({
         ...draft,
-        imagemGeradaUrl: imageUrl,
+        imagemGeradaUrl: finalImageUrl,
       });
     } catch (e) {
       console.error("Erro geral no fluxo do criativo:", e);
@@ -249,12 +310,28 @@ export default function App() {
     setTimeout(() => setCopiado(false), 1800);
   }
 
-  function baixarArteGerada() {
-    if (!resultado?.imagemGeradaUrl) return;
-    const link = document.createElement("a");
-    link.href = resultado.imagemGeradaUrl;
-    link.download = `${(tema || "criativo-ia").toLowerCase().replace(/\s+/g, "-")}.png`;
-    link.click();
+  async function baixarArteGerada() {
+    if (!cardRef.current || !resultado?.imagemGeradaUrl) return;
+
+    setBaixando(true);
+
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(cardRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+      });
+
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `${(tema || "criativo-ia").toLowerCase().replace(/\s+/g, "-")}.png`;
+      link.click();
+    } catch (e) {
+      console.error("Erro ao baixar arte final:", e);
+      setErro("Não foi possível exportar a arte final.");
+    } finally {
+      setBaixando(false);
+    }
   }
 
   const gerando = carregandoCopy || carregandoArte;
@@ -272,7 +349,7 @@ export default function App() {
                 Gere artes prontas para Instagram com inteligência artificial.
               </h1>
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-                Envie uma imagem, descreva seu objetivo e deixe a IA criar headline, copy, direção visual, legenda e a arte final pronta para postar.
+                A IA gera o fundo visual e o app aplica o texto correto por cima, com ortografia, hierarquia e proporção controladas.
               </p>
             </div>
 
@@ -283,11 +360,11 @@ export default function App() {
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
                 <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Processo</p>
-                <p className="mt-2 text-sm font-semibold">Síntese + arte com IA</p>
+                <p className="mt-2 text-sm font-semibold">Síntese + fundo IA</p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
                 <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Saída</p>
-                <p className="mt-2 text-sm font-semibold">Post pronto</p>
+                <p className="mt-2 text-sm font-semibold">Arte final com texto correto</p>
               </div>
             </div>
           </div>
@@ -301,7 +378,7 @@ export default function App() {
               </div>
               <div>
                 <h2 className="text-xl font-bold">Configurar criativo</h2>
-                <p className="text-sm text-slate-400">A IA vai usar esses dados para construir a peça.</p>
+                <p className="text-sm text-slate-400">A IA vai sintetizar os dados e gerar o fundo da peça.</p>
               </div>
             </div>
 
@@ -414,7 +491,7 @@ export default function App() {
                 {carregandoCopy
                   ? "Gerando síntese com IA..."
                   : carregandoArte
-                    ? "Gerando arte final com IA..."
+                    ? "Gerando fundo com IA..."
                     : "Gerar Criativo Completo"}
               </button>
             </div>
@@ -428,31 +505,101 @@ export default function App() {
                 </div>
                 <div>
                   <h2 className="text-xl font-bold">Resultado do criativo</h2>
-                  <p className="text-sm text-slate-400">A síntese e a arte final geradas pela IA aparecem aqui.</p>
+                  <p className="text-sm text-slate-400">O fundo vem da IA e o texto final é aplicado com precisão pelo app.</p>
                 </div>
               </div>
 
               <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
                 <div className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/80">
-                  <div className="flex aspect-[4/5] items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 p-4">
-                    {resultado?.imagemGeradaUrl ? (
-                      <img src={resultado.imagemGeradaUrl} alt="Arte gerada" className="h-full w-full rounded-[22px] object-cover" />
-                    ) : previewImage ? (
-                      <img src={previewImage} alt="Imagem base" className="h-full w-full rounded-[22px] object-cover opacity-80" />
-                    ) : (
-                      <div className="text-center text-slate-400">
-                        <ImageIcon className="mx-auto h-12 w-12" />
-                        <p className="mt-4 text-sm">A arte pronta aparecerá aqui</p>
+                  <div className="p-4">
+                    <div
+                      ref={cardRef}
+                      className="relative w-full overflow-hidden rounded-[22px] bg-slate-900"
+                      style={getCanvasStyle(formato)}
+                    >
+                      {resultado?.imagemGeradaUrl ? (
+                        <img
+                          src={resultado.imagemGeradaUrl}
+                          alt="Fundo gerado"
+                          className="absolute inset-0 h-full w-full object-cover"
+                          crossOrigin="anonymous"
+                        />
+                      ) : previewImage ? (
+                        <img
+                          src={previewImage}
+                          alt="Imagem base"
+                          className="absolute inset-0 h-full w-full object-cover opacity-80"
+                        />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-red-950" />
+                      )}
+
+                      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/20 to-black/55" />
+
+                      <div className="relative flex h-full flex-col justify-between p-[7%] text-white">
+                        <div className="space-y-[2.4%]">
+                          <div className={`font-black uppercase tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)] ${layout.headlineClass}`}>
+                            {resultado?.headline || "HEADLINE"}
+                          </div>
+
+                          {resultado?.subheadline ? (
+                            <div className={`max-w-[88%] font-semibold text-white/95 drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)] ${layout.subClass}`}>
+                              {resultado.subheadline}
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="space-y-[3.5%]">
+                          {resultado?.destaquePrincipal ? (
+                            <div className={`max-w-[82%] font-black uppercase leading-[0.95] text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)] ${layout.mainClass}`}>
+                              {resultado.destaquePrincipal}
+                            </div>
+                          ) : null}
+
+                          <div className="space-y-[1.8%]">
+                            {resultado?.localizacao ? (
+                              <div className={`font-semibold text-white/95 drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)] ${layout.metaClass}`}>
+                                {resultado.localizacao}
+                              </div>
+                            ) : null}
+
+                            {resultado?.apoio1 ? (
+                              <div className={`font-medium text-white/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)] ${layout.metaClass}`}>
+                                {resultado.apoio1}
+                              </div>
+                            ) : null}
+
+                            {resultado?.apoio2 ? (
+                              <div className={`font-medium text-white/90 drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)] ${layout.metaClass}`}>
+                                {resultado.apoio2}
+                              </div>
+                            ) : null}
+                          </div>
+
+                          {resultado?.valorPrincipal ? (
+                            <div className={`inline-block max-w-[90%] rounded-2xl bg-black/35 px-[3.2%] py-[2.2%] font-black text-white backdrop-blur-[2px] drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)] ${layout.valueClass}`}>
+                              {resultado.valorPrincipal}
+                            </div>
+                          ) : null}
+
+                          {resultado?.cta ? (
+                            <div className={`inline-block rounded-full border border-white/30 bg-white/10 px-[3.2%] py-[1.7%] font-bold uppercase tracking-[0.08em] text-white backdrop-blur-sm drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)] ${layout.ctaClass}`}>
+                              {resultado.cta}
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
+
                   <div className="border-t border-white/10 p-4">
                     <button
                       onClick={baixarArteGerada}
-                      disabled={!resultado?.imagemGeradaUrl}
+                      disabled={!resultado?.imagemGeradaUrl || baixando}
                       className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      <Download className="h-4 w-4" /> Baixar arte pronta
+                      <Download className="h-4 w-4" />
+                      {baixando ? "Exportando..." : "Baixar arte pronta"}
                     </button>
                   </div>
                 </div>
