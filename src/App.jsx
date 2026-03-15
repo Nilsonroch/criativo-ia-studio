@@ -46,6 +46,49 @@ function fileToBase64(file) {
   });
 }
 
+async function parseApiResponse(response) {
+  const rawText = await response.text();
+  const contentType = response.headers.get("content-type") || "";
+
+  let data = null;
+  let isJson = false;
+
+  if (contentType.includes("application/json")) {
+    try {
+      data = JSON.parse(rawText);
+      isJson = true;
+    } catch {
+      data = null;
+      isJson = false;
+    }
+  }
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    contentType,
+    rawText,
+    data,
+    isJson,
+  };
+}
+
+function buildApiError(label, parsed) {
+  if (parsed.isJson && parsed.data) {
+    return (
+      parsed.data?.error ||
+      parsed.data?.raw?.error?.message ||
+      `${label} falhou com status ${parsed.status}.`
+    );
+  }
+
+  if (parsed.rawText && parsed.rawText.trim().startsWith("<")) {
+    return `${label} retornou HTML em vez de JSON. Verifique se a function do Netlify está publicada corretamente.`;
+  }
+
+  return `${label} falhou com status ${parsed.status}.`;
+}
+
 export default function App() {
   const [imagem, setImagem] = useState(null);
   const [tema, setTema] = useState("");
@@ -111,14 +154,27 @@ export default function App() {
         }),
       });
 
-      const copyData = await copyResponse.json();
+      const copyParsed = await parseApiResponse(copyResponse);
 
-      if (!copyResponse.ok) {
-        throw new Error(copyData?.error || "Erro ao gerar copy com IA.");
+      if (!copyParsed.ok) {
+        console.error("Erro gerar-criativo:", copyParsed);
+        throw new Error(buildApiError("A função gerar-criativo", copyParsed));
       }
 
-      const draft = copyData.result;
+      if (!copyParsed.isJson || !copyParsed.data) {
+        console.error("Resposta inválida de gerar-criativo:", copyParsed);
+        throw new Error("A função gerar-criativo não retornou JSON válido.");
+      }
+
+      const draft = copyParsed.data?.result;
+
+      if (!draft) {
+        console.error("Sem result em gerar-criativo:", copyParsed.data);
+        throw new Error("A função gerar-criativo não retornou o conteúdo esperado.");
+      }
+
       setResultado({ ...draft, imagemGeradaUrl: null });
+
       setCarregandoCopy(false);
       setCarregandoArte(true);
 
@@ -142,10 +198,25 @@ export default function App() {
         }),
       });
 
-      const arteData = await arteResponse.json();
+      const arteParsed = await parseApiResponse(arteResponse);
 
-      if (!arteResponse.ok) {
-        throw new Error(arteData?.error || "Erro ao gerar arte com IA.");
+      if (!arteParsed.ok) {
+        console.error("Erro gerar-arte:", arteParsed);
+        throw new Error(buildApiError("A função gerar-arte", arteParsed));
+      }
+
+      if (!arteParsed.isJson || !arteParsed.data) {
+        console.error("Resposta inválida de gerar-arte:", arteParsed);
+        throw new Error("A função gerar-arte não retornou JSON válido.");
+      }
+
+      const arteData = arteParsed.data;
+
+      if (!arteData?.imageBase64) {
+        console.error("Sem imageBase64 em gerar-arte:", arteData);
+        throw new Error(
+          arteData?.error || "A função gerar-arte não retornou a imagem gerada."
+        );
       }
 
       const imageUrl = `data:${arteData.mimeType || "image/png"};base64,${arteData.imageBase64}`;
@@ -155,6 +226,7 @@ export default function App() {
         imagemGeradaUrl: imageUrl,
       });
     } catch (e) {
+      console.error("Erro geral no fluxo do criativo:", e);
       setErro(e.message || "Não foi possível gerar o criativo agora.");
     } finally {
       setCarregandoCopy(false);
