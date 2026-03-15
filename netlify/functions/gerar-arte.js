@@ -63,14 +63,17 @@ export async function handler(event) {
       observacoes,
       imageBase64,
       mimeType,
+      tipoAnuncio,
       headline,
-      textoArte,
-      direcaoVisual,
       subheadline,
       destaquePrincipal,
       localizacao,
       valorPrincipal,
+      apoio1,
+      apoio2,
       cta,
+      textoArte,
+      direcaoVisual,
     } = body;
 
     if (!tema || !descricao) {
@@ -92,7 +95,7 @@ export async function handler(event) {
     if (imageBase64 && mimeType) {
       try {
         const analysisPrompt = `
-Analise esta imagem enviada pelo usuário como referência visual para um post publicitário de Instagram.
+Analise esta imagem enviada pelo usuário como referência visual para um anúncio de Instagram.
 
 Retorne APENAS JSON válido com esta estrutura:
 {
@@ -105,10 +108,9 @@ Retorne APENAS JSON válido com esta estrutura:
 
 REGRAS:
 - descreva apenas o que realmente aparece
-- não invente texto, marcas, datas ou números não visíveis
-- identifique cenário, produto, fundo, clima visual e foco principal
-- sugira composição visual para um anúncio profissional
-- se a imagem estiver confusa, diga isso de forma curta
+- não invente números, marcas, datas ou textos
+- identifique cenário, produto, fundo, foco principal e clima visual
+- sugira apenas direções visuais úteis para uma arte publicitária
 `;
 
         const analysisResponse = await fetch("https://api.openai.com/v1/responses", {
@@ -147,10 +149,22 @@ REGRAS:
           let parsedAnalysis = null;
 
           try {
-            parsedAnalysis = JSON.parse(analysisData?.output_text || "{}");
+            const outputItems = analysisData?.output || [];
+            let text = "";
+
+            for (const item of outputItems) {
+              if (!Array.isArray(item.content)) continue;
+              for (const content of item.content) {
+                if (content?.type === "output_text" && typeof content.text === "string") {
+                  text += content.text;
+                }
+              }
+            }
+
+            parsedAnalysis = JSON.parse(text || "{}");
           } catch {
             parsedAnalysis = {
-              resumoVisual: analysisData?.output_text || "",
+              resumoVisual: "",
               elementosImportantes: [],
               climaVisual: "",
               composicaoSugerida: "",
@@ -175,50 +189,61 @@ Referência visual da imagem enviada:
     const visualPrompt = `
 Crie uma arte publicitária profissional para Instagram.
 
-Dados do anúncio:
-- Tema/produto: ${tema}
-- Objetivo: ${objetivo || "não informado"}
-- Estilo: ${estilo || "não informado"}
-- Formato: ${formato || "1080x1350"}
-- Headline principal: ${headline || ""}
+TIPO DE ANÚNCIO:
+${tipoAnuncio || "geral"}
+
+INFORMAÇÕES PRINCIPAIS DA PEÇA:
+- Headline: ${headline || ""}
 - Subheadline: ${subheadline || ""}
 - Destaque principal: ${destaquePrincipal || textoArte || ""}
 - Localização: ${localizacao || ""}
 - Valor principal: ${valorPrincipal || ""}
+- Apoio 1: ${apoio1 || ""}
+- Apoio 2: ${apoio2 || ""}
 - CTA: ${cta || ""}
-- Observações adicionais: ${observacoes || "nenhuma"}
-- Direção visual sugerida: ${direcaoVisual || ""}
+- Tema/produto: ${tema}
+- Objetivo: ${objetivo || "não informado"}
+- Estilo: ${estilo || "não informado"}
+- Formato: ${formato || "1080x1350"}
+- Observações: ${observacoes || "nenhuma"}
+- Direção visual: ${direcaoVisual || ""}
 
-Descrição complementar:
+DESCRIÇÃO COMPLEMENTAR:
 ${descricao}
 
 ${imageInsights}
 
 REGRAS OBRIGATÓRIAS:
 - criar uma arte enxuta, elegante, profissional e persuasiva
-- não escrever "criado por IA", "gerado com IA" ou frases similares
-- não inserir parágrafos longos
-- não copiar texto bruto de edital, descrição jurídica, matrícula ou bloco técnico
-- usar apenas as informações essenciais para vender a ideia principal
+- não escrever "criado por IA", "gerado por IA" ou frases parecidas
+- não copiar texto bruto de edital, matrícula, laudo, observação técnica ou bloco jurídico
+- não usar parágrafos longos
+- usar apenas informações essenciais
 - manter ortografia correta em português
-- destacar headline e no máximo 2 ou 3 informações fortes
+- destacar headline e no máximo 2 ou 3 blocos de apoio
 - evitar excesso de texto
-- evitar informação irrelevante ou sem relação comercial
-- não inventar números, datas ou localidades
+- evitar poluição visual
+- não inventar datas, números, valores ou localidades
 - se algum dado estiver incerto, omitir esse dado da arte
 - parecer um anúncio profissional real de Instagram
 - priorizar contraste, legibilidade e hierarquia visual
-- se houver imagem enviada, usar apenas como inspiração visual/conceitual, sem tentar reproduzir texto da imagem original
+- se houver imagem enviada, usar apenas como referência visual e conceitual
+- nunca inserir observações irrelevantes na arte
 
 ESTRUTURA VISUAL ESPERADA:
-- headline forte
-- subtítulo curto, se fizer sentido
-- 1 destaque principal
-- localização ou contexto curto
-- valor principal, se houver
+- headline principal forte
+- subheadline curta, se fizer sentido
+- um destaque principal
+- um bloco curto de localização ou contexto
+- um bloco curto de valor, se houver
 - CTA curto, se houver
 
-A arte deve ficar limpa, sofisticada e pronta para postagem.
+ESTILO VISUAL:
+- sofisticado
+- limpo
+- comercial
+- com hierarquia clara
+- pronto para postagem
 `;
 
     const payload = {
