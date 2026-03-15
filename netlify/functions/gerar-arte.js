@@ -45,8 +45,6 @@ export async function handler(event) {
       estilo,
       formato,
       observacoes,
-      imageBase64,
-      mimeType,
       headline,
       textoArte,
       direcaoVisual,
@@ -102,10 +100,6 @@ Requisitos:
       output_format: "png",
       prompt: visualPrompt,
     };
-
-    if (imageBase64 && mimeType) {
-      payload.image = [`data:${mimeType};base64,${imageBase64}`];
-    }
 
     const response = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
